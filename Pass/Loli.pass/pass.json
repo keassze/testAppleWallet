@@ -1,0 +1,76 @@
+{
+  "associatedApps": [], 
+  "barcodes": [
+    {
+        "format": "PKBarcodeFormatQR",
+        "message": "PPLDEMOAEON102",
+        "messageEncoding": "UTF-8"
+    }
+],
+"beacons": [],
+  "description" : "description",
+  "formatVersion" : 1,
+  "organizationName" : "Apple Inc.",
+  "passTypeIdentifier" : "pass.com.hkbn.aeon.app.uat",
+  "serialNumber" : "nmyuxofgnabdww1seq",
+  "teamIdentifier" : "2H4N562DU4",
+  "locations" : [
+    {
+      "longitude" : -122.3748889,
+      "latitude" : 37.6189722
+    },
+    {
+      "longitude" : -122.03118,
+      "latitude" : 37.33182
+    }
+  ],
+  "relevantDate" : "2011-12-08T13:00-08:00",
+  "eventTicket" : {
+    "primaryFields" : [
+      {
+        "key" : "",
+        "label" : "",
+        "value" : ""
+      }
+    ],
+    "secondaryFields" : [
+      {
+        "key" : "loc",
+        "label" : "DR-MAX 万事达卡 - UATC",
+        "value" : ""
+      }
+    ],
+    "auxiliaryFields" : [
+    {
+        "key" : "aualex",
+        "label" : "有效期",
+        "value" : "2021年2月9日 - 202x年?月?日"
+    }
+    ]
+  },
+  "barcode" : {
+      "altText" : "20210209D1234567",
+    "message" : "message=20210209D1234567",
+    "format" : "PKBarcodeFormatQR",
+    "messageEncoding" : "iso-8859-1"
+  },
+  "backFields" : [
+      {
+          "key" : "key 0",
+          "label" : "this is title",
+          "value" : "this is title content"
+      },
+      {
+          "key" : "key 1",
+          "label" : "this is subtitle",
+          "value" : "this is subtitle content, test apple wallet"
+      }
+  ],
+  "associatedStoreIdentifiers" : [],
+  "backgroundColor" : "rgb(208, 208, 208)",
+  "foregroundColor" : "rgb(64, 0, 192)",
+  "labelColor" : "rgb(244, 138, 36)",
+  "logoText" : "HK$300 礼券及精美礼品 -UATE",
+  "authenticationToken" : "vxwxd7J8AlNNFPS8k0a0FfUFtq0ewzFdc",
+  "webServiceURL" : "https://example.com/passes/"
+}
