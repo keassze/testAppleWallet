@@ -64,37 +64,6 @@ const passData = {
   relevantDate: "2024-11-05T00:00:00+08:00",
 };
 
-// 检查设备是否支持 Apple Wallet
-function isAppleWalletSupported() {
-  const userAgent = navigator.userAgent;
-  const isIOS = /iPad|iPhone|iPod/.test(userAgent);
-  const isSafari = /Safari/.test(userAgent) && !/Chrome/.test(userAgent);
-
-  return isIOS && isSafari;
-}
-
-// 检查本地是否有 .pkpass 文件
-async function findLocalPassFile() {
-  const possiblePaths = [
-    "./Pass/maxims-coupon.pkpass",
-    "./Pass/Loli.pkpass",
-    "./Pass/coupon.pkpass",
-  ];
-
-  for (const path of possiblePaths) {
-    try {
-      const response = await fetch(path);
-      if (response.ok) {
-        return path;
-      }
-    } catch (error) {
-      // 继续尝试下一个路径
-    }
-  }
-
-  return null;
-}
-
 // 获取 .pkpass 文件
 function getPassFile() {
   // 使用绝对路径，兼容 GitHub Pages
@@ -103,7 +72,7 @@ function getPassFile() {
   return baseUrl + "/Pass/maxims-coupon.pkpass";
 }
 
-// 添加到 Apple Wallet
+// 添加到 Apple Wallet（简化版 - 仅使用 Bridge）
 async function addToAppleWallet() {
   try {
     showMessage("正在准备添加到 Apple Wallet...", "info");
@@ -112,81 +81,39 @@ async function addToAppleWallet() {
     const passUrl = getPassFile();
     console.log("Pass URL:", passUrl);
 
-    // 检查文件是否存在
-    try {
-      const response = await fetch(passUrl, { method: "HEAD" });
-      if (!response.ok) {
-        console.error("Pass file not found:", response.status);
-        throw new Error("Pass file not found");
-      }
-    } catch (error) {
-      console.error("Fetch error:", error);
-      showMessage(
-        "未找到 .pkpass 文件，请确保文件已上传到 GitHub Pages",
-        "error"
-      );
+    // 检测是否在 React Native WebView 中
+    const isReactNativeWebView = window.ReactNativeWebView !== undefined;
+    const hasWebKitBridge =
+      window.webkit &&
+      window.webkit.messageHandlers &&
+      window.webkit.messageHandlers.addToWallet;
+
+    console.log("Environment:", {
+      isReactNativeWebView,
+      hasWebKitBridge,
+      userAgent: navigator.userAgent,
+    });
+
+    // 方案1: 使用 React Native Bridge（推荐）
+    if (hasWebKitBridge) {
+      console.log("✅ 使用 React Native Bridge");
+      window.webkit.messageHandlers.addToWallet.postMessage({
+        action: "addToWallet",
+        url: passUrl,
+      });
+      showMessage("正在打开 Apple Wallet...", "success");
       return;
     }
 
-    // 检测是否在 iOS 环境中（包括 WebView）
+    // 方案2: 降级方案 - 直接导航（在 Safari 中）
+    console.log("⚠️ 未检测到 Bridge，使用降级方案");
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isInWebView = /(iPhone|iPod|iPad).*AppleWebKit(?!.*Safari)/i.test(
-      navigator.userAgent
-    );
 
     if (isIOS) {
-      // 检测是否在 WebView 中
-      if (isInWebView) {
-        console.log("Detected WebView environment");
-
-        // 方案1: 尝试使用 URL Scheme 通知原生 app
-        // 你需要在 iOS app 中注册一个 URL Scheme，例如: myapp://addpass?url=xxx
-        const appScheme = `aeonuat://addpass?url=${encodeURIComponent(passUrl)}`;
-        console.log("Trying app scheme:", appScheme);
-
-        // 尝试打开 app scheme
-        const iframe = document.createElement("iframe");
-        iframe.style.display = "none";
-        iframe.src = appScheme;
-        document.body.appendChild(iframe);
-
-        setTimeout(() => {
-          document.body.removeChild(iframe);
-        }, 1000);
-
-        // 同时尝试 window.webkit.messageHandlers（如果 app 支持）
-        if (
-          window.webkit &&
-          window.webkit.messageHandlers &&
-          window.webkit.messageHandlers.addToWallet
-        ) {
-          console.log("Using webkit message handler");
-          window.webkit.messageHandlers.addToWallet.postMessage({
-            action: "addPass",
-            url: passUrl,
-          });
-          showMessage("正在打开 Apple Wallet...", "success");
-          return;
-        }
-
-        // 方案2: 如果没有原生支持，尝试在新窗口打开
-        console.log("Trying window.open");
-        const newWindow = window.open(passUrl, "_blank");
-        if (!newWindow) {
-          // 如果被阻止，尝试直接导航
-          console.log("window.open blocked, trying location.href");
-          window.location.href = passUrl;
-        }
-
-        showMessage("正在打开 Apple Wallet...", "success");
-      } else {
-        // 在 Safari 中，直接导航到 .pkpass 文件
-        console.log("In Safari, navigating to:", passUrl);
-        window.location.href = passUrl;
-        showMessage("正在打开 Apple Wallet...", "success");
-      }
+      window.location.href = passUrl;
+      showMessage("正在打开 Apple Wallet...", "success");
     } else {
-      // 在其他浏览器中，提供下载链接
+      // 在其他浏览器中，提供下载
       const link = document.createElement("a");
       link.href = passUrl;
       link.download = "maxims-coupon.pkpass";
@@ -194,11 +121,7 @@ async function addToAppleWallet() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
-      showMessage(
-        "已下载 .pkpass 文件，请在 iOS 设备上打开以添加到 Apple Wallet",
-        "success"
-      );
+      showMessage("已下载 .pkpass 文件，请在 iOS 设备上打开", "success");
     }
   } catch (error) {
     console.error("添加到 Apple Wallet 失败:", error);
@@ -281,33 +204,30 @@ document.addEventListener("DOMContentLoaded", function () {
   if (addButton) {
     addButton.addEventListener("click", addToAppleWallet);
 
-    // 检测环境并更新按钮文本
+    // 检测环境
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isInWebView = /(iPhone|iPod|iPad).*AppleWebKit(?!.*Safari)/i.test(
-      navigator.userAgent
-    );
+    const hasWebKitBridge =
+      window.webkit &&
+      window.webkit.messageHandlers &&
+      window.webkit.messageHandlers.addToWallet;
 
-    console.log("Environment:", {
+    console.log("页面加载完成:", {
       isIOS,
-      isInWebView,
-      userAgent: navigator.userAgent,
+      hasWebKitBridge,
+      passUrl: getPassFile(),
     });
 
-    // 在 iOS 环境中显示"添加到 Apple Wallet"
+    // 更新按钮文本
     if (isIOS) {
       addButton.innerHTML = `
         <span class="wallet-icon">📱</span>
         添加到 Apple Wallet
       `;
-      if (isInWebView) {
-        addButton.title = "在 WebView 中打开 Apple Wallet";
-      }
     } else {
       addButton.innerHTML = `
         <span class="wallet-icon">📱</span>
         下载 .pkpass 文件
       `;
-      addButton.title = "下载 .pkpass 文件，然后在 iOS 设备上打开";
     }
   }
 
@@ -321,7 +241,4 @@ document.addEventListener("DOMContentLoaded", function () {
       }, 150);
     });
   }
-
-  // 输出调试信息
-  console.log("Page loaded, Pass URL will be:", getPassFile());
 });
