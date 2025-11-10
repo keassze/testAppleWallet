@@ -141,7 +141,7 @@ async function addToAppleWallet() {
 
         // 方案1: 尝试使用 URL Scheme 通知原生 app
         // 你需要在 iOS app 中注册一个 URL Scheme，例如: myapp://addpass?url=xxx
-        const appScheme = `myapp://addpass?url=${encodeURIComponent(passUrl)}`;
+        const appScheme = `aeonuat://addpass?url=${encodeURIComponent(passUrl)}`;
         console.log("Trying app scheme:", appScheme);
 
         // 尝试打开 app scheme
