@@ -97,8 +97,10 @@ async function findLocalPassFile() {
 
 // 获取 .pkpass 文件
 function getPassFile() {
-  // 直接返回本地 .pkpass 文件的路径
-  return "./Pass/maxims-coupon.pkpass";
+  // 使用绝对路径，兼容 GitHub Pages
+  const baseUrl =
+    window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, "");
+  return baseUrl + "/Pass/maxims-coupon.pkpass";
 }
 
 // 添加到 Apple Wallet
@@ -106,24 +108,38 @@ async function addToAppleWallet() {
   try {
     showMessage("正在准备添加到 Apple Wallet...", "info");
 
-    // 获取本地 .pkpass 文件路径
+    // 获取 .pkpass 文件的完整 URL
     const passUrl = getPassFile();
+    console.log("Pass URL:", passUrl);
 
     // 检查文件是否存在
     try {
-      const response = await fetch(passUrl);
+      const response = await fetch(passUrl, { method: "HEAD" });
       if (!response.ok) {
+        console.error("Pass file not found:", response.status);
         throw new Error("Pass file not found");
       }
     } catch (error) {
-      showMessage("未找到 .pkpass 文件，请确保文件在 Pass 文件夹中", "error");
+      console.error("Fetch error:", error);
+      showMessage(
+        "未找到 .pkpass 文件，请确保文件已上传到 GitHub Pages",
+        "error"
+      );
       return;
     }
 
-    if (isAppleWalletSupported()) {
-      // 在 iOS Safari 中，直接导航到 .pkpass 文件会触发 Apple Wallet
+    // 检测是否在 iOS 环境中（包括 WebView）
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+    if (isIOS) {
+      // 在 iOS 中（包括 WebView），直接导航到 .pkpass 文件会触发 Apple Wallet
+      console.log("Opening in iOS, navigating to:", passUrl);
       window.location.href = passUrl;
-      showMessage("正在打开 Apple Wallet...", "success");
+
+      // 延迟显示成功消息，避免页面跳转时消息消失
+      setTimeout(() => {
+        showMessage("正在打开 Apple Wallet...", "success");
+      }, 100);
     } else {
       // 在其他浏览器中，提供下载链接
       const link = document.createElement("a");
@@ -141,7 +157,7 @@ async function addToAppleWallet() {
     }
   } catch (error) {
     console.error("添加到 Apple Wallet 失败:", error);
-    showMessage("添加失败，请稍后重试", "error");
+    showMessage("添加失败: " + error.message, "error");
   }
 }
 
@@ -220,8 +236,28 @@ document.addEventListener("DOMContentLoaded", function () {
   if (addButton) {
     addButton.addEventListener("click", addToAppleWallet);
 
-    // 更新按钮文本和提示
-    if (!isAppleWalletSupported()) {
+    // 检测环境并更新按钮文本
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isInWebView = /(iPhone|iPod|iPad).*AppleWebKit(?!.*Safari)/i.test(
+      navigator.userAgent
+    );
+
+    console.log("Environment:", {
+      isIOS,
+      isInWebView,
+      userAgent: navigator.userAgent,
+    });
+
+    // 在 iOS 环境中显示"添加到 Apple Wallet"
+    if (isIOS) {
+      addButton.innerHTML = `
+        <span class="wallet-icon">📱</span>
+        添加到 Apple Wallet
+      `;
+      if (isInWebView) {
+        addButton.title = "在 WebView 中打开 Apple Wallet";
+      }
+    } else {
       addButton.innerHTML = `
         <span class="wallet-icon">📱</span>
         下载 .pkpass 文件
@@ -240,4 +276,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }, 150);
     });
   }
+
+  // 输出调试信息
+  console.log("Page loaded, Pass URL will be:", getPassFile());
 });
