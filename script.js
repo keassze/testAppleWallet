@@ -130,55 +130,59 @@ async function addToAppleWallet() {
 
     // 检测是否在 iOS 环境中（包括 WebView）
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isInWebView = /(iPhone|iPod|iPad).*AppleWebKit(?!.*Safari)/i.test(
+      navigator.userAgent
+    );
 
     if (isIOS) {
-      // 使用 Blob 下载方式，避免浏览器直接显示文件内容
-      try {
-        console.log("Fetching pass file as blob...");
-        const response = await fetch(passUrl);
+      // 检测是否在 WebView 中
+      if (isInWebView) {
+        console.log("Detected WebView environment");
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        // 方案1: 尝试使用 URL Scheme 通知原生 app
+        // 你需要在 iOS app 中注册一个 URL Scheme，例如: myapp://addpass?url=xxx
+        const appScheme = `myapp://addpass?url=${encodeURIComponent(passUrl)}`;
+        console.log("Trying app scheme:", appScheme);
+
+        // 尝试打开 app scheme
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        iframe.src = appScheme;
+        document.body.appendChild(iframe);
+
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000);
+
+        // 同时尝试 window.webkit.messageHandlers（如果 app 支持）
+        if (
+          window.webkit &&
+          window.webkit.messageHandlers &&
+          window.webkit.messageHandlers.addToWallet
+        ) {
+          console.log("Using webkit message handler");
+          window.webkit.messageHandlers.addToWallet.postMessage({
+            action: "addPass",
+            url: passUrl,
+          });
+          showMessage("正在打开 Apple Wallet...", "success");
+          return;
         }
 
-        const blob = await response.blob();
-        console.log("Blob created, size:", blob.size, "type:", blob.type);
-
-        // 创建一个带有正确 MIME 类型的新 Blob
-        const passBlob = new Blob([blob], {
-          type: "application/vnd.apple.pkpass",
-        });
-
-        // 创建 Object URL
-        const blobUrl = URL.createObjectURL(passBlob);
-        console.log("Blob URL created:", blobUrl);
-
-        // 创建隐藏的下载链接并触发
-        const link = document.createElement("a");
-        link.href = blobUrl;
-        link.download = "maxims-coupon.pkpass";
-        link.style.display = "none";
-        document.body.appendChild(link);
-        link.click();
-
-        // 清理
-        setTimeout(() => {
-          document.body.removeChild(link);
-          URL.revokeObjectURL(blobUrl);
-        }, 100);
+        // 方案2: 如果没有原生支持，尝试在新窗口打开
+        console.log("Trying window.open");
+        const newWindow = window.open(passUrl, "_blank");
+        if (!newWindow) {
+          // 如果被阻止，尝试直接导航
+          console.log("window.open blocked, trying location.href");
+          window.location.href = passUrl;
+        }
 
         showMessage("正在打开 Apple Wallet...", "success");
-      } catch (blobError) {
-        console.error("Blob download failed:", blobError);
-        // 如果 Blob 方式失败，尝试直接下载
-        const link = document.createElement("a");
-        link.href = passUrl;
-        link.download = "maxims-coupon.pkpass";
-        link.target = "_blank";
-        link.style.display = "none";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+      } else {
+        // 在 Safari 中，直接导航到 .pkpass 文件
+        console.log("In Safari, navigating to:", passUrl);
+        window.location.href = passUrl;
         showMessage("正在打开 Apple Wallet...", "success");
       }
     } else {
