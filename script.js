@@ -132,14 +132,55 @@ async function addToAppleWallet() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
     if (isIOS) {
-      // 在 iOS 中（包括 WebView），直接导航到 .pkpass 文件会触发 Apple Wallet
-      console.log("Opening in iOS, navigating to:", passUrl);
-      window.location.href = passUrl;
+      // 使用 Blob 下载方式，避免浏览器直接显示文件内容
+      try {
+        console.log("Fetching pass file as blob...");
+        const response = await fetch(passUrl);
 
-      // 延迟显示成功消息，避免页面跳转时消息消失
-      setTimeout(() => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        console.log("Blob created, size:", blob.size, "type:", blob.type);
+
+        // 创建一个带有正确 MIME 类型的新 Blob
+        const passBlob = new Blob([blob], {
+          type: "application/vnd.apple.pkpass",
+        });
+
+        // 创建 Object URL
+        const blobUrl = URL.createObjectURL(passBlob);
+        console.log("Blob URL created:", blobUrl);
+
+        // 创建隐藏的下载链接并触发
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = "maxims-coupon.pkpass";
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+
+        // 清理
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(blobUrl);
+        }, 100);
+
         showMessage("正在打开 Apple Wallet...", "success");
-      }, 100);
+      } catch (blobError) {
+        console.error("Blob download failed:", blobError);
+        // 如果 Blob 方式失败，尝试直接下载
+        const link = document.createElement("a");
+        link.href = passUrl;
+        link.download = "maxims-coupon.pkpass";
+        link.target = "_blank";
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showMessage("正在打开 Apple Wallet...", "success");
+      }
     } else {
       // 在其他浏览器中，提供下载链接
       const link = document.createElement("a");
