@@ -112,10 +112,9 @@ async function addToWallet() {
 
   if (isIOS) {
     await addToAppleWallet();
-  } else if (isAndroid) {
-    addToGoogleWallet();
   } else {
-    showMessage("请在 iOS 或 Android 设备上打开", "error");
+        showMessage("请在 iOS 或 Android 设备上打开", "error");
+    addToGoogleWallet();
   }
 }
 
